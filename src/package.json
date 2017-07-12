@@ -1,7 +1,7 @@
 {
-  "name": "skill-sample-js-trivia",
+  "name": "my-gym-day-tracker",
   "version": "1.0.0",
-  "description": "A simple trivia skill i18n version.",
+  "description": "An app that allows you to track your visits to the gym.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,7 +9,7 @@
   "keywords": [
     "alexa",
     "skill",
-    "trivia"
+    "custom"
   ],
   "author": "Amazon.com",
   "license": "Apache-2.0",
