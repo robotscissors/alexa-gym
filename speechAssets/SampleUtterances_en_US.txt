@@ -1,0 +1,20 @@
+SetGoingToGymIntent going to the gym
+SetGoingToGymIntent gym time
+SetGoingToGymIntent gym
+SetGoingToGymIntent leaving for the gym
+SetGoingToGymIntent went to the gym
+
+GetLastTimeAtGymIntent tell me when did I go to the gym last
+GetLastTimeAtGymIntent when was the last time I was at the gym
+GetLastTimeAtGymIntent when did I go to the gym last
+
+GetNumberOfTotalVisitsIntent how many times have I gone to the gym
+GetNumberOfTotalVisitsIntent what is the total of gym days
+GetNumberOfTotalVisitsIntent how many days have I been to the gym
+GetNumberOfTotalVisitsIntent tell me how many days have I been to the gym
+
+ResetGymCountIntent reset my gym count
+ResetGymCountIntent erase all previous visits to gym
+
+GetNumberOfVisitsSinceDateIntent how many times I have I gone to the gym {SinceDate}
+GetNumberOfVisitsSinceDateIntent tell me how many times I have I gone to the gym {SinceDate}
