@@ -12,11 +12,11 @@ exports.handler = function(event, context, callback){
 //handlers with intent
 var handlers = {
     'LaunchRequest': function () {
-        this.emit(':tell', 'Started Gym Application');
+        this.emit(':tell', 'WelcomeIntent');
     },
 
     'WelcomeIntent': function () {
-        this.emit(':tell', 'Started Gym Application');
+        this.emit(':ask', 'Are you off to the gym?');
     },
 
     'SetGoingToGymIntent': function () {
