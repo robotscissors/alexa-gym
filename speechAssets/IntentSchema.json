@@ -1,10 +1,11 @@
 {"intents": [
     {"intent": "WelcomeIntent"},
+    {"intent": "AreYouGoingIntent", "slots": [{"name": "AreYouGoingSlot", "type": "YES_OR_NO"}]},
     {"intent": "SetGoingToGymIntent"},
     {"intent": "GetLastTimeAtGymIntent"},
     {"intent": "GetNumberOfTotalVisitsIntent"},
     {"intent": "ResetGymCountIntent"},
-    {"intent": "GetNumberOfVisitsSinceDateIntent", "slots": [{"name": "SinceDate", "type": "AMAZON.DATE"}]},
+    {"intent": "GetNumberOfVisitsSinceDateIntent", "slots": [{"name": "SinceDateSlot", "type": "AMAZON.DATE"}]},
     {"intent": "AMAZON.StartOverIntent"},
     {"intent": "AMAZON.RepeatIntent"},
     {"intent": "AMAZON.HelpIntent"},

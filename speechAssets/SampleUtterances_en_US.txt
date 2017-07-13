@@ -1,6 +1,8 @@
+AreYouGoingIntent {AreYouGoingSlot}
+AreYouGoingIntent {AreYouGoingSlot} I am going
+AreYouGoingIntent {AreYouGoingSlot} I went already
+
 SetGoingToGymIntent going to the gym
-SetGoingToGymIntent gym time
-SetGoingToGymIntent gym
 SetGoingToGymIntent leaving for the gym
 SetGoingToGymIntent went to the gym
 
@@ -16,5 +18,5 @@ GetNumberOfTotalVisitsIntent tell me how many days have I been to the gym
 ResetGymCountIntent reset my gym count
 ResetGymCountIntent erase all previous visits to gym
 
-GetNumberOfVisitsSinceDateIntent how many times I have I gone to the gym {SinceDate}
-GetNumberOfVisitsSinceDateIntent tell me how many times I have I gone to the gym {SinceDate}
+GetNumberOfVisitsSinceDateIntent how many times I have I gone to the gym {SinceDateSlot}
+GetNumberOfVisitsSinceDateIntent tell me how many times I have I gone to the gym {SinceDateSlot}
