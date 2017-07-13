@@ -12,12 +12,25 @@ exports.handler = function(event, context, callback){
 //handlers with intent
 var handlers = {
     'LaunchRequest': function () {
-        this.emit(':tell', 'WelcomeIntent');
+        this.emit('WelcomeIntent');
     },
 
     'WelcomeIntent': function () {
-        this.emit(':ask', 'Are you off to the gym?');
+        this.emit(':ask', 'Are you off to the gym... yes or no... or say help for other options?');
     },
+
+    'AreYouGoingIntent': function () {
+        var areYouGoing = this.event.request.intent.slots.AreYouGoingSlot.value;
+        switch (areYouGoing) {
+          case 'yes':
+            this.emit(':tell', 'Good job... Go Get EM!! Your response is ' + areYouGoing);
+            break;
+          default:
+            this.emit(':ask', 'What can I help you with? Say HELP for a list of commands');
+            break;
+          }
+    },
+
 
     'SetGoingToGymIntent': function () {
       //do something amazing error capture?
@@ -50,7 +63,7 @@ var handlers = {
     },
 
     'AMAZON.HelpIntent': function () {
-        this.emit(':tell', 'Just tell me you are going to the gym and I will make note of it. If you want to know how many times you have been to them, just ask ... how many times have I been to the gym?');
+        this.emit(':ask', 'you can say things like how many times have I been to the gym this month, or say reset gym tracker to reset all data');
     },
 
     'Unhandled': function () {
