@@ -14,6 +14,7 @@
   "author": "Christopher Bazin",
   "license": "Apache-2.0",
   "dependencies": {
-    "alexa-sdk": "^1.0.11"
+    "alexa-sdk": "^1.0.11",
+    "dynamodb-doc": "^1.0.0"
   }
 }

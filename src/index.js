@@ -1,6 +1,11 @@
 "use strict";
+console.log ("gym tracker started");
 var APP_ID = "amzn1.ask.skill.5091e1a5-fb91-45aa-bf14-5b6dc4dc29a7";
 var Alexa = require('alexa-sdk');
+var tableName = "GymTracker";
+var doc = require('dynamodb-doc');
+var dynamo = new doc.DynamoDB();
+
 
 exports.handler = function(event, context, callback){
     var alexa = Alexa.handler(event, context, callback);
@@ -11,6 +16,7 @@ exports.handler = function(event, context, callback){
 
 //handlers with intent
 var handlers = {
+
     'LaunchRequest': function () {
         this.emit('WelcomeIntent');
     },
@@ -21,13 +27,27 @@ var handlers = {
 
     'AreYouGoingIntent': function () {
         var areYouGoing = this.event.request.intent.slots.AreYouGoingSlot.value;
+        var userID = this.event['session']['user']['userId'];
         switch (areYouGoing) {
           case 'yes':
-            this.emit(':tell', 'Good job... Go Get EM!! Your response is ' + areYouGoing);
-            break;
-          default:
-            this.emit(':ask', 'What can I help you with? Say HELP for a list of commands');
-            break;
+            this.emit(':tell', 'Good job...  Your response is ' + areYouGoing);
+
+            var gymDate = Date.now();
+            //console.log('You are at the gym: '+ gymDate);
+            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID}},
+             function(err, data) {
+              if (err)
+                  console.log(err, err.stack); // an error occurred
+              else
+                  console.log(data);
+              });
+              break;
+            case 'no':
+              this.emit(':tell', 'Why are you telling me?');
+              break;
+            default:
+              this.emit(':ask', 'What can I help you with? Say HELP for a list of commands');
+              break;
           }
     },
 
