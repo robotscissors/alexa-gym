@@ -74,7 +74,33 @@ var handlers = {
 
     'ResetGymCountIntent': function () {
       //do something amazing error capture?
+        log.console("removing data for user")
         this.emit(':tell', 'Reset the gym count.');
+        var userID = this.event['session']['user']['userId'];
+        var params = {
+            TableName:tableName,
+            KeyConditionExpression: "#user = :user_id",
+              ExpressionAttributeNames:{
+                  "#user": "userId"
+              },
+              ExpressionAttributeValues: {
+                  ":user_id":userID
+              }
+            };
+
+            dynamo.query(params, function(err, data) {
+                if (err) {
+                    console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+                } else {
+                    console.log("Query succeeded.");
+                    data.Items.forEach(function(item) {
+                        console.log(" -", item.stampId + ": " + item.userId);
+                    });
+                }
+            });
+
+
+
     },
 
     'GetNumberOfVisitsSinceDateIntent': function () {
