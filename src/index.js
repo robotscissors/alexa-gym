@@ -34,7 +34,7 @@ var handlers = {
 
             var gymDate = Date.now();
             //console.log('You are at the gym: '+ gymDate);
-            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID, }},
+            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID, dateAtGym: gymDate}},
              function(err, data) {
               if (err)
                   console.log(err, err.stack); // an error occurred
@@ -74,21 +74,21 @@ var handlers = {
 
     'ResetGymCountIntent': function () {
       //do something amazing error capture?
-        log.console("removing data for user")
-        this.emit(':tell', 'Reset the gym count.');
+        console.log("removing data for user");
+        this.emit(':tell', 'Resetting the gym count.');
         var userID = this.event['session']['user']['userId'];
         var params = {
             TableName:tableName,
-            KeyConditionExpression: "#user = :user_id",
-              ExpressionAttributeNames:{
-                  "#user": "userId"
-              },
-              ExpressionAttributeValues: {
-                  ":user_id":userID
-              }
-            };
-
-            dynamo.query(params, function(err, data) {
+            FilterExpression: "#userCheck = :currentUser",
+            ExpressionAttributeNames: {
+                "#userCheck": "userId",
+            },
+            ExpressionAttributeValues: {
+                 ":currentUser": userID
+            }
+          };
+            console.log(JSON.stringify(params,null,2));
+            dynamo.scan(params, function(err, data) {
                 if (err) {
                     console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
                 } else {
@@ -96,6 +96,26 @@ var handlers = {
                     data.Items.forEach(function(item) {
                         console.log(" -", item.stampId + ": " + item.userId);
                     });
+                    data.Items.forEach(function(item) {
+                      var params = {
+                            TableName:tableName,
+                            Key:{
+                                stampId: item.stampId,
+                                userId: item.userId
+                              }
+                        };
+                        console.log(JSON.stringify(params,null,2));
+                        dynamo.deleteItem(params, function(err, data) {
+                            if (err) {
+                                console.error("Unable to delete item. Error JSON:", JSON.stringify(err, null, 2));
+                            } else {
+                                console.log("DeleteItem succeeded:", JSON.stringify(data, null, 2));
+                            }
+                        });
+
+
+                    });
+
                 }
             });
 
