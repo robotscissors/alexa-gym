@@ -34,7 +34,7 @@ var handlers = {
 
             var gymDate = Date.now();
             //console.log('You are at the gym: '+ gymDate);
-            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID}},
+            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID, }},
              function(err, data) {
               if (err)
                   console.log(err, err.stack); // an error occurred
