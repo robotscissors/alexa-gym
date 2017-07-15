@@ -28,13 +28,14 @@ var handlers = {
     'AreYouGoingIntent': function () {
         var areYouGoing = this.event.request.intent.slots.AreYouGoingSlot.value;
         var userID = this.event['session']['user']['userId'];
+
         switch (areYouGoing) {
           case 'yes':
             this.emit(':tell', 'Good job...  Your response is ' + areYouGoing);
 
-            var gymDate = Date.now();
-            //console.log('You are at the gym: '+ gymDate);
-            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate, userId : userID, dateAtGym: gymDate}},
+            var gymDate = new Date();
+            console.log('You are at the gym: '+ formatDate(gymDate));
+            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: formatDate(gymDate)}},
              function(err, data) {
               if (err)
                   console.log(err, err.stack); // an error occurred
@@ -69,7 +70,43 @@ var handlers = {
 
     'GetNumberOfTotalVisitsIntent': function () {
       //do something amazing error capture?
-        this.emit(':tell', 'Total number of visits from database!');
+        console.log("calculating total number of visits");
+        var userID = this.event['session']['user']['userId'];
+        var response = "";
+        var params = {
+            TableName:tableName,
+            FilterExpression: "#userCheck = :currentUser",
+            ExpressionAttributeNames: {
+                "#userCheck": "userId",
+            },
+            ExpressionAttributeValues: {
+                 ":currentUser": userID
+            }
+          };
+            console.log(JSON.stringify(params,null,2));
+            var self = this;
+            dynamo.scan(params, function(err, data) {
+                if (err) {
+                    console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+                } else {
+                    var total = data.Items.length;
+                    var response = "";
+                    console.log("Query succeeded. Total: "+total+" your last visit was "+data.Items[total-1].dateAtGym);
+                    if (total>1){
+                      response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ data.Items[total-1].dateAtGym;
+                    };
+                    if (total===1){
+                      response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ data.Items[total-1].dateAtGym+' ... Seriously? I can\'t believe you asked me!';
+                    };
+
+                    self.emit(':tell', response);
+                    // data.Items.forEach(function(item) {
+                    //     console.log(" -", item.stampId + ": " + item.userId);
+                    // });
+                }
+            });
+
+
     },
 
     'ResetGymCountIntent': function () {
@@ -136,3 +173,19 @@ var handlers = {
         this.emit(':tell', 'You are having trouble.');
     },
  };
+
+
+ function formatDate(date) {
+   var monthNames = [
+     "January", "February", "March",
+     "April", "May", "June", "July",
+     "August", "September", "October",
+     "November", "December"
+   ];
+
+   var day = date.getDate();
+   var monthIndex = date.getMonth();
+   var year = date.getFullYear();
+
+   return monthNames[monthIndex] + ' ' + day + ', ' + year;
+ }
