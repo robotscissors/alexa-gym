@@ -2,7 +2,7 @@
 console.log ("gym tracker started");
 var APP_ID = "amzn1.ask.skill.5091e1a5-fb91-45aa-bf14-5b6dc4dc29a7";
 var Alexa = require('alexa-sdk');
-var tableName = "GymTracker";
+var tableName = "GymTracker3";
 var doc = require('dynamodb-doc');
 var dynamo = new doc.DynamoDB();
 
@@ -65,7 +65,38 @@ var handlers = {
 
     'GetLastTimeAtGymIntent': function () {
       //do something amazing error capture?
-        this.emit(':tell', 'Last time at gym was...');
+        console.log("calculating last time I was at the gym");
+        var userID = this.event['session']['user']['userId'];
+        var response = "";
+        var params = {
+            TableName:tableName,
+            //KeyConditionExpression: "#userCheck < :currentUser",
+            FilterExpression: "#userCheck = :currentUser",
+            ExpressionAttributeNames: {
+                "#userCheck": "userId"
+
+            },
+            ExpressionAttributeValues: {
+                ":currentUser": userID
+
+            }
+
+          };
+        var self = this;
+        dynamo.scan(params, function(err, data) {
+            var response = "";
+            if (err) {
+                console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+                response = "Hmmm. I am not sure, there may be a problem or you haven't gone to the gym yet."
+            } else {
+                var total = data.Items.length;
+
+                console.log("Query succeeded. Your last visit was "+data.Items[total-1].dateAtGym);
+                response = 'Your last visit was '+ data.Items[total-1].dateAtGym;
+            }
+                self.emit(':tell', response);
+        });
+
     },
 
     'GetNumberOfTotalVisitsIntent': function () {
@@ -166,11 +197,11 @@ var handlers = {
     },
 
     'AMAZON.HelpIntent': function () {
-        this.emit(':ask', 'you can say things like how many times have I been to the gym this month, or say reset gym tracker to reset all data');
+        this.emit(':ask', 'you can say things like how many times have you been to the gym this month, or say reset gym tracker to reset all data');
     },
 
     'Unhandled': function () {
-        this.emit(':tell', 'You are having trouble.');
+        this.emit(':ask', 'Are You are having trouble? You can ask how many times you have been to the gym, or say reset gym tracker to reset all data. If you are going to the gym, just say, I\'m off to the gym!');
     },
  };
 
