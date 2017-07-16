@@ -53,14 +53,30 @@ var handlers = {
     },
 
 
-    'SetGoingToGymIntent': function () {
-      //do something amazing error capture?
-        this.emit(':tell', 'Write to database!');
-    },
+
 
     'SetGoingToGymIntent': function () {
-      //do something amazing error capture?
-        this.emit(':tell', 'Write to database!');
+
+
+       var gymDate = new Date();
+       var userID = this.event['session']['user']['userId'];
+       var self = this;
+       var okResponse = "Good job! I have marked you down.";
+
+       dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: formatDate(gymDate)}},
+        function(err, data) {
+         if (err) {
+             console.log(err, err.stack); // an error occurred
+          } else {
+             console.log(data);
+             console.log("You are going to the gym - let's mark it down");
+             self.emit(':tell', okResponse);
+          }
+
+         });
+
+
+
     },
 
     'GetLastTimeAtGymIntent': function () {
