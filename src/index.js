@@ -1,5 +1,6 @@
 "use strict";
-console.log ("gym tracker started");
+
+
 var APP_ID = "amzn1.ask.skill.5091e1a5-fb91-45aa-bf14-5b6dc4dc29a7";
 var Alexa = require('alexa-sdk');
 var tableName = "GymTracker3";
@@ -14,7 +15,7 @@ exports.handler = function(event, context, callback){
     alexa.execute();
 };
 
-//handlers with intent
+
 var handlers = {
 
     'LaunchRequest': function () {
@@ -56,8 +57,7 @@ var handlers = {
 
 
     'SetGoingToGymIntent': function () {
-
-
+      // insert into datatbase that you are going to the gym
        var gymDate = new Date();
        var userID = this.event['session']['user']['userId'];
        var self = this;
@@ -80,7 +80,7 @@ var handlers = {
     },
 
     'GetLastTimeAtGymIntent': function () {
-      //do something amazing error capture?
+        //read database to find out when you went to the gym last
         console.log("calculating last time I was at the gym");
         var userID = this.event['session']['user']['userId'];
         var response = "";
@@ -116,7 +116,7 @@ var handlers = {
     },
 
     'GetNumberOfTotalVisitsIntent': function () {
-      //do something amazing error capture?
+      //query database to find out how many times you went to the gym
         console.log("calculating total number of visits");
         var userID = this.event['session']['user']['userId'];
         var response = "";
@@ -157,7 +157,7 @@ var handlers = {
     },
 
     'ResetGymCountIntent': function () {
-      //do something amazing error capture?
+      //Reset the gym count in the database
         console.log("removing data for user");
         this.emit(':tell', 'Resetting the gym count.');
         var userID = this.event['session']['user']['userId'];
@@ -208,8 +208,61 @@ var handlers = {
     },
 
     'GetNumberOfVisitsSinceDateIntent': function () {
-      //do something amazing error capture?
-        this.emit(':tell', 'You haven\'t been to the gym since..');
+      // how many times did you go the gym since.
+      var sinceDate = this.event.request.intent.slots.SinceDateSlot.value;
+
+
+      console.log ("The Since Date is: " + sinceDate);
+      // handle a Date convert to getTime for comparison
+
+      try {
+      //if (!sinceDate.includes("W") ) {
+      if (([ 'W', 'X', 'S', 'F', 'A' ].indexOf(sinceDate) <= -1) && (sinceDate != undefined)) { //unsupported date formats
+        // convert date to time stamp for comparison
+        var compareDate = new Date(sinceDate);
+        console.log (compareDate.getTime());
+        // let's query the database
+        var userID = this.event['session']['user']['userId'];
+        var self = this;
+        var params = {
+            TableName : tableName,
+            KeyConditionExpression: "#user = :userID AND stampId >= :timeSince",
+            ExpressionAttributeNames:{
+                "#user": "userId"
+            },
+            ExpressionAttributeValues: {
+                ":userID":userID,
+                ":timeSince": compareDate.getTime()
+            }
+        };
+
+        dynamo.query(params, function(err, data) {
+            if (err) {
+                console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+            } else {
+                var total = data.Items.length;
+                var response = "";
+                console.log("Query succeeded. Total: "+total+" your last visit was "+data.Items[total-1].dateAtGym);
+                if (total>1){
+                  response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ data.Items[total-1].dateAtGym;
+                };
+                if (total===1){
+                  response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ data.Items[total-1].dateAtGym+' ... Seriously? I can\'t believe you asked me!';
+                };
+
+                self.emit(':tell', response);
+            }
+        });
+
+
+
+       } else {
+        //it's a date that requires more manipulation
+         this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?');
+       }
+    } catch(err) {
+      this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?');
+    };
     },
 
     'AMAZON.HelpIntent': function () {
