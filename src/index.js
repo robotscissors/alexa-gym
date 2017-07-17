@@ -62,7 +62,6 @@ var handlers = {
          if (err) {
              console.log(err, err.stack); // an error occurred
           } else {
-             console.log(data);
              console.log("You are going to the gym - let's mark it down");
              self.emit(':tell', okResponse);
           }
@@ -108,7 +107,7 @@ var handlers = {
 
     'GetNumberOfTotalVisitsIntent': function () {
       //query database to find out how many times you went to the gym
-        console.log("calculating total number of visits");
+
         var userID = this.event['session']['user']['userId'];
         var response = "";
         var params = {
@@ -121,7 +120,7 @@ var handlers = {
                  ":currentUser": userID
             }
           };
-            console.log(JSON.stringify(params,null,2));
+
             var self = this;
 
 
@@ -132,7 +131,7 @@ var handlers = {
                     var total = data.Items.length;
                     var response = "";
                     var retrievedDate = new Date(data.Items[total-1].dateAtGym);
-                    console.log("total: "+total);
+
                     if (total > 0) {
                       console.log("Query succeeded. Total: "+total+" your last visit was "+ formatDate(retrievedDate));
                       if (total>1){
@@ -147,6 +146,60 @@ var handlers = {
                     self.emit(':tell', response);
                 }
             });
+    },
+
+    'GetNumberOfVisitsSinceDateIntent': function () {
+      // how many times did you go the gym since.
+      var sinceDate = this.event.request.intent.slots.SinceDateSlot.value;
+      // handle a Date convert to getTime for comparison
+      var compareDate = new Date(sinceDate).getTime();
+      var currentDate = new Date().getTime();
+
+      try {
+
+        if (([ 'W', 'X', 'S', 'F', 'A' ].indexOf(sinceDate) <= -1) && (sinceDate != undefined) && (compareDate <= currentDate )) { //unsupported date formats
+          // let's query the database
+          var userID = this.event['session']['user']['userId'];
+          var self = this;
+          var params = {
+              TableName : tableName,
+              KeyConditionExpression: "#user = :userID AND stampId >= :timeSince",
+              ExpressionAttributeNames:{
+                  "#user": "userId"
+              },
+              ExpressionAttributeValues: {
+                  ":userID":userID,
+                  ":timeSince": compareDate
+              }
+          };
+
+          dynamo.query(params, function(err, data) {
+              if (err) {
+                  console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+              } else {
+                  var total = data.Items.length;
+                  var response = "";
+                  console.log(JSON.stringify(data.Items,null,2));
+                  var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+
+                  console.log("Query succeeded. Total: "+total+" your last visit was "+retrievedDate);
+                  if (total>1){
+                    response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ retrievedDate;
+                  };
+                  if (total===1){
+                    response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ retrievedDate+' ... Seriously? I can\'t believe you asked me!';
+                  };
+
+                  self.emit(':tell', response);
+              }
+          });
+         } else {
+          //it's a date that requires more manipulation
+           this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?', repromptText);
+         }
+        } catch(err) {
+          this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?', repromptText);
+        };
     },
 
     'ResetGymCountIntent': function () {
@@ -181,7 +234,7 @@ var handlers = {
                                 userId: item.userId
                               }
                         };
-                        console.log(JSON.stringify(params,null,2));
+
                         dynamo.deleteItem(params, function(err, data) {
                             if (err) {
                                 console.error("Unable to delete item. Error JSON:", JSON.stringify(err, null, 2));
@@ -195,62 +248,6 @@ var handlers = {
 
                 }
             });
-    },
-
-    'GetNumberOfVisitsSinceDateIntent': function () {
-      // how many times did you go the gym since.
-      var sinceDate = this.event.request.intent.slots.SinceDateSlot.value;
-      // handle a Date convert to getTime for comparison
-      var compareDate = new Date(sinceDate).getTime();
-      var currentDate = new Date().getTime();
-      console.log ("since variable: "+ compareDate + " < stamp" +currentDate);
-      try {
-      //if (!sinceDate.includes("W") ) {
-      if (([ 'W', 'X', 'S', 'F', 'A' ].indexOf(sinceDate) <= -1) && (sinceDate != undefined) && (compareDate <= currentDate )) { //unsupported date formats
-        // convert date to time stamp for comparison
-
-        // let's query the database
-        var userID = this.event['session']['user']['userId'];
-        var self = this;
-        var params = {
-            TableName : tableName,
-            KeyConditionExpression: "#user = :userID AND stampId >= :timeSince",
-            ExpressionAttributeNames:{
-                "#user": "userId"
-            },
-            ExpressionAttributeValues: {
-                ":userID":userID,
-                ":timeSince": compareDate
-            }
-        };
-        console.log("start query on: "+compareDate);
-        dynamo.query(params, function(err, data) {
-            if (err) {
-                console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
-            } else {
-                var total = data.Items.length;
-                var response = "";
-                console.log(JSON.stringify(data.Items,null,2));
-                var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
-
-                console.log("Query succeeded. Total: "+total+" your last visit was "+retrievedDate);
-                if (total>1){
-                  response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ retrievedDate;
-                };
-                if (total===1){
-                  response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ retrievedDate+' ... Seriously? I can\'t believe you asked me!';
-                };
-
-                self.emit(':tell', response);
-            }
-        });
-       } else {
-        //it's a date that requires more manipulation
-         this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?', repromptText);
-       }
-    } catch(err) {
-      this.emit(':ask', 'The way you phrased the date is incorrect. I can answer your question if you tell me a specific day or say a month. For example, how many times did I go to the gym since last month. Try again?', repromptText);
-    };
     },
 
     'AMAZON.HelpIntent': function () {
