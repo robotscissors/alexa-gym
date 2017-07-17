@@ -33,7 +33,7 @@ var handlers = {
           case 'yes':
             this.emit(':tell', 'Keep up the great work! I made a note of this.');
             var gymDate = new Date();
-            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: formatDate(gymDate)}},
+            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
             function(err, data) {
               if (err)
                   console.log(err, err.stack); // an error occurred
@@ -57,7 +57,7 @@ var handlers = {
        var self = this;
        var okResponse = "Good job! I have marked it down.";
 
-       dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: formatDate(gymDate)}},
+       dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
         function(err, data) {
          if (err) {
              console.log(err, err.stack); // an error occurred
@@ -94,12 +94,13 @@ var handlers = {
             var response = "";
             if (err) {
                 console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
-                response = "Hmmm. I am not sure, there may be a problem or you haven't gone to the gym yet."
+                response = "Hmmm. I am not sure, there may be a problem or you haven't gone to the gym yet.";
             } else {
                 var total = data.Items.length;
-
-                console.log("Query succeeded. Your last visit was "+data.Items[total-1].dateAtGym);
-                response = 'Your last visit was '+ data.Items[total-1].dateAtGym;
+                var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+                console.log("Query succeeded. Your last visit was "+ retrievedDate);
+                //console.log("Query succeeded. Your last visit was "+ formatDate(data.Items[total-1].dateAtGym));
+                response = 'Your last visit was '+ retrievedDate;
             }
                 self.emit(':tell', response);
         });
@@ -130,13 +131,14 @@ var handlers = {
                 } else {
                     var total = data.Items.length;
                     var response = "";
+                    var retrievedDate = new Date(data.Items[total-1].dateAtGym);
                     console.log("total: "+total);
                     if (total > 0) {
-                      console.log("Query succeeded. Total: "+total+" your last visit was "+data.Items[total-1].dateAtGym);
+                      console.log("Query succeeded. Total: "+total+" your last visit was "+ formatDate(retrievedDate));
                       if (total>1){
-                        response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ data.Items[total-1].dateAtGym;
+                        response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ formatDate(retrievedDate);
                       } else if (total===1){
-                        response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ data.Items[total-1].dateAtGym+' ... Seriously? I can\'t believe you asked me!';
+                        response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ formatDate(retrievedDate) +' ... Seriously? I can\'t believe you asked me!';
                       }
                     } else {
                       console.log("It's less than zero!!");
@@ -199,12 +201,14 @@ var handlers = {
       // how many times did you go the gym since.
       var sinceDate = this.event.request.intent.slots.SinceDateSlot.value;
       // handle a Date convert to getTime for comparison
+      var compareDate = new Date(sinceDate).getTime();
+      var currentDate = new Date().getTime();
+      console.log ("since variable: "+ compareDate + " < stamp" +currentDate);
       try {
       //if (!sinceDate.includes("W") ) {
-      if (([ 'W', 'X', 'S', 'F', 'A' ].indexOf(sinceDate) <= -1) && (sinceDate != undefined)) { //unsupported date formats
+      if (([ 'W', 'X', 'S', 'F', 'A' ].indexOf(sinceDate) <= -1) && (sinceDate != undefined) && (compareDate <= currentDate )) { //unsupported date formats
         // convert date to time stamp for comparison
-        var compareDate = new Date(sinceDate);
-        console.log (compareDate.getTime());
+
         // let's query the database
         var userID = this.event['session']['user']['userId'];
         var self = this;
@@ -216,22 +220,25 @@ var handlers = {
             },
             ExpressionAttributeValues: {
                 ":userID":userID,
-                ":timeSince": compareDate.getTime()
+                ":timeSince": compareDate
             }
         };
-        console.log("start query on: "+compareDate.getTime() );
+        console.log("start query on: "+compareDate);
         dynamo.query(params, function(err, data) {
             if (err) {
                 console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
             } else {
                 var total = data.Items.length;
                 var response = "";
-                console.log("Query succeeded. Total: "+total+" your last visit was "+data.Items[total-1].dateAtGym);
+                console.log(JSON.stringify(data.Items,null,2));
+                var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+
+                console.log("Query succeeded. Total: "+total+" your last visit was "+retrievedDate);
                 if (total>1){
-                  response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ data.Items[total-1].dateAtGym;
+                  response = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ retrievedDate;
                 };
                 if (total===1){
-                  response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ data.Items[total-1].dateAtGym+' ... Seriously? I can\'t believe you asked me!';
+                  response = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ retrievedDate+' ... Seriously? I can\'t believe you asked me!';
                 };
 
                 self.emit(':tell', response);
@@ -247,7 +254,7 @@ var handlers = {
     },
 
     'AMAZON.HelpIntent': function () {
-        this.emit(':ask', 'you can say things like... how many times have I been to the gym this month? ... Or how many times have I been to the gym this since January?... You can also say reset gym tracker to reset all data.', repromptText);
+        this.emit(':ask', 'you can say things like... how many times have I been to the gym this month? ... Or how many times have I been to the gym this since January 2017?... You can also say reset gym tracker to reset all data.', repromptText);
     },
 
     'Unhandled': function () {
