@@ -48,6 +48,7 @@ function trackEvent(category, action, label, value, callbback) {
 exports.handler = function(event, context, callback){
     var alexa = Alexa.handler(event, context, callback);
     alexa.appId = APP_ID;
+    alexa.dynamoDBTableName = 'GymTracker_state'; //holds variables in state like timezone
     alexa.registerHandlers(handlers);
     alexa.execute();
 };
@@ -55,10 +56,20 @@ exports.handler = function(event, context, callback){
 var handlers = {
 
     'LaunchRequest': function () {
-        this.emit('WelcomeIntent');
+        if (this.attributes['timeZone']) {  // has timezone already been set for this user?
+            this.emit('WelcomeIntent');
+          } else {
+            // ask for timezone
+            this.attributes['timeZone-offset'] = -8;
+            console.log('set timezone');
+            
+            this.emit('WelcomeIntent');
+          }
+
     },
 
     'WelcomeIntent': function () {
+
         this.emit(':ask', 'Are you off to the gym... yes or no?', repromptText);
     },
 
