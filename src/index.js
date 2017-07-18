@@ -29,23 +29,61 @@ var handlers = {
         var areYouGoing = this.event.request.intent.slots.AreYouGoingSlot.value;
         var userID = this.event['session']['user']['userId'];
 
+        // set parameters to query times at gymDate
+        var self = this;
+        var gymDate = new Date();
+        var lastDate = "";
+        var currentDate = formatDate(gymDate);
+        var params = {
+            TableName : tableName,
+            KeyConditionExpression: "#user = :userID",
+            ExpressionAttributeNames:{
+                "#user": "userId"
+            },
+            ExpressionAttributeValues: {
+                ":userID":userID
+            }
+        };
+
+
+
         switch (areYouGoing) {
           case 'yes':
-            this.emit(':tell', 'Keep up the great work! I made a note of this.');
-            var gymDate = new Date();
-            dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
-            function(err, data) {
-              if (err)
-                  console.log(err, err.stack); // an error occurred
-              else
-                  console.log(data);
-              });
+            //this.emit(':tell', 'Keep up the great work! I made a note of this.');
+            //var gymDate = new Date();
+            //check to see if there was an entry for today
+            console.log("response is yes");
+            dynamo.query(params, function(err, data) {
+                if (err) {
+                    console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+
+                } else {
+                  var total = data.Items.length;
+                  console.log("total Records: "+total);
+                  lastDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+                  console.log("Last date: "+lastDate + " Today's Date: "+ currentDate);
+                }
+            });
+
+            // check to see if they are the same.
+            if (lastDate === currentDate) {
+              self.emit(':ask', 'Hmm.... It looks like you already told me you went to the gym. Say help for additional commands', repromptText);
+            } else {
+              dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
+              function(err, data) {
+                if (err)
+                    console.log(err, err.stack); // an error occurred
+                else
+                    self.emit(':tell', 'Keep up the great work! I made a note of this. ' + currentDate + " last date: "+lastDate);
+                    console.log(data);
+                });
+            }
               break;
           case 'no':
-              this.emit(':tell', 'Why are you telling me?');
+              self.emit(':tell', 'Why are you telling me?');
               break;
           default:
-              this.emit(':ask', 'What can I help you with? Say HELP for a list of commands', repromptText);
+              self.emit(':ask', 'What can I help you with? Say HELP for a list of commands', repromptText);
               break;
           }
     },
