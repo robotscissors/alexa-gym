@@ -10,6 +10,8 @@ var APP_ID = "amzn1.ask.skill.5091e1a5-fb91-45aa-bf14-5b6dc4dc29a7";
 var tableName = "GymTracker3";
 var dynamo = new doc.DynamoDB();
 var GA_TRACKING_ID = 'UA-102762030-1';
+var ua = require('universal-analytics');
+var intentTrackingID = ua('UA-102762030-1');
 
 var repromptText = "For instructions on what you can say, please say help me.";
 var helpPhrase = "You can say things like... I'm going to the gym!... or ... How many times have I been to the gym this month? ... Or how many times have I been to the gym since January 2017?... You can also say reset gym tracker to reset all data.";
@@ -21,20 +23,23 @@ function trackEvent(category, action, label, value, callbback) {
     tid: GA_TRACKING_ID, // Tracking ID / Property ID.
     // Anonymous Client Identifier. Ideally, this should be a UUID that
     // is associated with particular user, device, or browser instance.
-    cid: '555',
+    cid: '12345',
     t: 'event', // Event hit type.
     ec: category, // Event category.
     ea: action, // Event action.
     el: label, // Event label.
     ev: value, // Event value.
   };
-
+  console.log("post data: "+ JSON.stringify(data,null,2));
   request.post(
     'http://www.google-analytics.com/collect', {
       form: data
     },
     function(err, response) {
-      if (err) { return callbback(err); }
+      if (err) {
+        console.log(err);
+        return callbback(err);
+      }
       if (response.statusCode !== 200) {
         return callbback(new Error('Tracking failed'));
       }
@@ -58,12 +63,13 @@ var handlers = {
     'LaunchRequest': function () {
         if (this.attributes['timeZone']) {  // has timezone already been set for this user?
             this.emit('WelcomeIntent');
+            intentTrackingID.event("LaunchRequest","").send();
           } else {
+
             // ask for timezone
-            this.attributes['timeZone-offset'] = -8;
+            this.emit(':ask', 'To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone....What time zone are you in?');
             console.log('set timezone');
-            
-            this.emit('WelcomeIntent');
+
           }
 
     },
@@ -72,6 +78,40 @@ var handlers = {
 
         this.emit(':ask', 'Are you off to the gym... yes or no?', repromptText);
     },
+
+
+    'WhichTimeZoneIntent': function () {
+      var timeZoneResponse = this.event.request.intent.slots.TimeZoneSlot.value;
+      var userID = this.event['session']['user']['userId'];
+      var self = this;
+      var responseTimeZone = "";
+      console.log("TimeZoneSlot: "+timeZoneResponse);
+
+
+      switch (timeZoneResponse) {
+        case "pacific":
+          responseTimeZone = "You have selected Pacific TimeZone.... Have you gone to the gym, today?";
+          this.attributes['timeZone'] = -8;
+          break;
+        case "mountain":
+          responseTimeZone = "You have selected Mountain TimeZone.... Have you gone to the gym, today?";
+          this.attributes['timeZone'] = -7;
+          break;
+        case "central":
+          responseTimeZone = "You have selected Central TimeZone.... Have you gone to the gym, today?";
+          this.attributes['timeZone'] = -6;
+          break;
+        case "eastern":
+          responseTimeZone = "You have selected Eastern TimeZone.... Have you gone to the gym, today?";
+          this.attributes['timeZone'] = -5;
+          break;
+        default :
+          responseTimeZone = "Hmmmm..... I didn't get that. To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone.... What time zone are you in?";
+      }
+
+      this.emit(':ask', responseTimeZone);
+    },
+
 
     'AreYouGoingIntent': function () {
 
@@ -121,25 +161,28 @@ var handlers = {
                         console.log("total Records: "+ total);
                         lastDate = formatDate(new Date(data.Items[total-1].dateAtGym));
                         console.log("Last date: "+lastDate + " Today's Date: "+ currentDate);
-                      } else {
-                        lastDate = "";
+                        if (lastDate === currentDate) {
+                          self.emit(':ask', responseDuplicate, repromptText);
+                        } else {
+                          dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
+                          function(err, data) {
+                            if (err)
+                                console.log(err, err.stack); // an error occurred
+                            else
+                                self.emit(':tell', responseOK);
+                            });
+                        }
                       }
                     }
                 });
 
+                // console.log(lastDate === currentDate);
+                // console.log(typeof lastDate);
+                // console.log(typeof currentDate);
+                // console.log("Out of query: last date: "+lastDate + " Today's Date: "+ currentDate);
+
                 // check to see if they are the same.
-                if (lastDate === currentDate) {
-                  self.emit(':ask', responseDuplicate, repromptText);
-                } else {
-                  dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
-                  function(err, data) {
-                    if (err)
-                        console.log(err, err.stack); // an error occurred
-                    else
-                        self.emit(':tell', responseOK);
-                        console.log(data);
-                    });
-                }
+
                   break;
               case 'no':
                   self.emit(':tell', responseNegative);
@@ -416,25 +459,41 @@ var handlers = {
         });
     },
 
-    "AMAZON.NoIntent": function () {
+    "AMAZON.CancelIntent": function () {
         var self = this;
-        var noIntentPhrase = "Okay...";
+        var cancelIntentPhrase = "Okay...";
         trackEvent(
           'Intent',
-          'AMAZON.NoIntent',
+          'AMAZON.CancelIntent',
           'na',
           '100', // Event value must be numeric.
           function(err) {
             if (err) {
                 return next(err);
             }
-          self.emit(':tell', noIntentPhrase);
+          self.emit(':tell', cancelIntentPhrase);
+          });
+    },
+
+    "AMAZON.StopIntent": function () {
+        var self = this;
+        var cancelIntentPhrase = "Okay...";
+        trackEvent(
+          'Intent',
+          'AMAZON.StopIntent',
+          'na',
+          '100', // Event value must be numeric.
+          function(err) {
+            if (err) {
+                return next(err);
+            }
+          self.emit(':tell', cancelIntentPhrase);
           });
     },
 
     'Unhandled': function () {
         var self = this;
-        var unhandledPhrase = "Are You are having trouble? You can ask how many times you have been to the gym, or say reset gym tracker to reset all data... If you are going to the gym, just say, I\'m off to the gym!";
+        var unhandledPhrase = "Are you are having trouble? You can ask how many times you have been to the gym, or say reset gym tracker to reset all data... If you are going to the gym, just say, I\'m off to the gym!";
         trackEvent(
           'Intent',
           'AMAZON.unhandled',
