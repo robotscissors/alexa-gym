@@ -17,7 +17,6 @@
     "alexa-sdk": "^1.0.11",
     "dynamodb-doc": "^1.0.0",
     "express": "^4.15.3",
-    "request": "^2.81.0",
-    "universal-analytics": "^0.4.13"
+    "request": "^2.81.0"
   }
 }

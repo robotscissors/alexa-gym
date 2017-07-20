@@ -10,20 +10,19 @@ var APP_ID = "amzn1.ask.skill.5091e1a5-fb91-45aa-bf14-5b6dc4dc29a7";
 var tableName = "GymTracker3";
 var dynamo = new doc.DynamoDB();
 var GA_TRACKING_ID = 'UA-102762030-1';
-var ua = require('universal-analytics');
-var intentTrackingID = ua('UA-102762030-1');
+
 
 var repromptText = "For instructions on what you can say, please say help me.";
-var helpPhrase = "You can say things like... I'm going to the gym!... or ... How many times have I been to the gym this month? ... Or how many times have I been to the gym since January 2017?... You can also say reset gym tracker to reset all data.";
+var helpPhrase = "You can say things like... I'm going to the gym!... or ... How many times have I been to the gym this month? ... Or how many times have I been to the gym since January 2017?... You can also say ..reset gym tracker to erase your gym data.";
 
 
-function trackEvent(category, action, label, value, callbback) {
+function trackEvent(category, action, cidName, label, value, callbback) {
   var data = {
     v: '1', // API Version.
     tid: GA_TRACKING_ID, // Tracking ID / Property ID.
     // Anonymous Client Identifier. Ideally, this should be a UUID that
     // is associated with particular user, device, or browser instance.
-    cid: '12345',
+    cid: cidName,
     t: 'event', // Event hit type.
     ec: category, // Event category.
     ea: action, // Event action.
@@ -61,22 +60,60 @@ exports.handler = function(event, context, callback){
 var handlers = {
 
     'LaunchRequest': function () {
-        if (this.attributes['timeZone']) {  // has timezone already been set for this user?
-            this.emit('WelcomeIntent');
-            intentTrackingID.event("LaunchRequest","").send();
+        var userID = this.event['session']['user']['userId'];
+        var self = this;
+        if (self.attributes['timeZone']) {  // has timezone already been set for this user?
+          trackEvent(
+            'Intent',
+            'AMAZON.LaunchRequest',
+            userID,
+            'Launch User - saved TimeZone',
+            '100',
+            function(err) {
+              if (err) {
+                  return next(err);
+              }
+              self.emit('WelcomeIntent');
+            });
           } else {
-
+            trackEvent(
+              'Intent',
+              'AMAZON.LaunchRequest',
+              userID,
+              'New User - no saved TimeZone',
+              '100',
+              function(err) {
+                if (err) {
+                    return next(err);
+                }
             // ask for timezone
-            this.emit(':ask', 'To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone....What time zone are you in?');
-            console.log('set timezone');
+              self.emit(':ask', 'To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone....What time zone are you in?');
+              console.log('set timezone');
+            });
 
           }
 
     },
 
     'WelcomeIntent': function () {
+      var userID = this.event['session']['user']['userId'];
+      var self = this;
 
-        this.emit(':ask', 'Are you off to the gym... yes or no?', repromptText);
+      if (checkForTimeZone(self)) { return; }
+
+      trackEvent(
+        'Intent',
+        'AMAZON.SetTimeZoneIntent',
+        userID,
+        'Welcome Prompt',
+        '100',
+        function(err) {
+          if (err) {
+              return next(err);
+          }
+          self.emit(':ask', 'Are you off to the gym... yes or no?', repromptText);
+        });
+
     },
 
 
@@ -87,29 +124,39 @@ var handlers = {
       var responseTimeZone = "";
       console.log("TimeZoneSlot: "+timeZoneResponse);
 
+      trackEvent(
+        'Intent',
+        'AMAZON.SetTimeZoneIntent',
+        userID,
+        'Setting TimeZone',
+        '100',
+        function(err) {
+          if (err) {
+              return next(err);
+          }
+          switch (timeZoneResponse) {
+            case "pacific":
+              responseTimeZone = "You have selected Pacific TimeZone.... Have you gone to the gym, today?";
+              self.attributes['timeZone'] = -8;
+              break;
+            case "mountain":
+              responseTimeZone = "You have selected Mountain TimeZone.... Have you gone to the gym, today?";
+              self.attributes['timeZone'] = -7;
+              break;
+            case "central":
+              responseTimeZone = "You have selected Central TimeZone.... Have you gone to the gym, today?";
+              self.attributes['timeZone'] = -6;
+              break;
+            case "eastern":
+              responseTimeZone = "You have selected Eastern TimeZone.... Have you gone to the gym, today?";
+              self.attributes['timeZone'] = -5;
+              break;
+            default :
+              responseTimeZone = "Hmmmm..... I didn't get that. To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone.... What time zone are you in?";
+          }
 
-      switch (timeZoneResponse) {
-        case "pacific":
-          responseTimeZone = "You have selected Pacific TimeZone.... Have you gone to the gym, today?";
-          this.attributes['timeZone'] = -8;
-          break;
-        case "mountain":
-          responseTimeZone = "You have selected Mountain TimeZone.... Have you gone to the gym, today?";
-          this.attributes['timeZone'] = -7;
-          break;
-        case "central":
-          responseTimeZone = "You have selected Central TimeZone.... Have you gone to the gym, today?";
-          this.attributes['timeZone'] = -6;
-          break;
-        case "eastern":
-          responseTimeZone = "You have selected Eastern TimeZone.... Have you gone to the gym, today?";
-          this.attributes['timeZone'] = -5;
-          break;
-        default :
-          responseTimeZone = "Hmmmm..... I didn't get that. To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone.... What time zone are you in?";
-      }
-
-      this.emit(':ask', responseTimeZone);
+          self.emit(':ask', responseTimeZone);
+      });
     },
 
 
@@ -118,13 +165,8 @@ var handlers = {
         var areYouGoing = this.event.request.intent.slots.AreYouGoingSlot.value;
         var userID = this.event['session']['user']['userId'];
         var self = this;
-        var gymDate = new Date();
-        var lastDate = "";
-        var currentDate = formatDate(gymDate);
         var responseProblem = 'What can I help you with? Say HELP for a list of commands';
-        var responseDuplicate = 'Hmm.... It looks like you already told me you went to the gym. Say help for additional commands';
-        var responseOK = 'Keep up the great work! I made a note of this.';
-        var responseNegative = 'Why are you telling me?';
+        var responseNegative = 'Ok.... well let me know when you do go to the gym so I can make a note of it. I mean, that\'s the point, right?';
 
         var params = {
             TableName : tableName,
@@ -137,10 +179,13 @@ var handlers = {
             }
         };
 
+      if (checkForTimeZone(self)) { return; }
+
         trackEvent(
           'Intent',
           'AMAZON.SetGoingToGymIntent',
-          'na',
+          userID,
+          'Update Gym Total',
           '100',
           function(err) {
             if (err) {
@@ -151,37 +196,7 @@ var handlers = {
             switch (areYouGoing) {
               case 'yes':
                 console.log("response is yes");
-                dynamo.query(params, function(err, data) {
-                    if (err) {
-                        console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
-
-                    } else {
-                      var total = data.Items.length;
-                      if (total>0) {
-                        console.log("total Records: "+ total);
-                        lastDate = formatDate(new Date(data.Items[total-1].dateAtGym));
-                        console.log("Last date: "+lastDate + " Today's Date: "+ currentDate);
-                        if (lastDate === currentDate) {
-                          self.emit(':ask', responseDuplicate, repromptText);
-                        } else {
-                          dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
-                          function(err, data) {
-                            if (err)
-                                console.log(err, err.stack); // an error occurred
-                            else
-                                self.emit(':tell', responseOK);
-                            });
-                        }
-                      }
-                    }
-                });
-
-                // console.log(lastDate === currentDate);
-                // console.log(typeof lastDate);
-                // console.log(typeof currentDate);
-                // console.log("Out of query: last date: "+lastDate + " Today's Date: "+ currentDate);
-
-                // check to see if they are the same.
+                insertNewDate(params, userID, self);
 
                   break;
               case 'no':
@@ -200,26 +215,33 @@ var handlers = {
        var userID = this.event['session']['user']['userId'];
        var self = this;
        var responseOK = "Good job! I have marked it down.";
+       var currentDate = formatDate(gymDate);
+       var params = {
+           TableName : tableName,
+           KeyConditionExpression: "#user = :userID",
+           ExpressionAttributeNames:{
+               "#user": "userId"
+           },
+           ExpressionAttributeValues: {
+               ":userID":userID
+           }
+       };
+
+      if (checkForTimeZone(self)) { return; }
 
        trackEvent(
          'Intent',
          'AMAZON.SetGoingToGymIntent',
-         'na',
+         userID,
+         'Update Gym Total - no Yes or No',
          '100',
          function(err) {
            if (err) {
                return next(err);
            }
-           dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
-            function(err, data) {
-             if (err) {
-                 console.log(err, err.stack); // an error occurred
-              } else {
-                 console.log("You are going to the gym - let's mark it down");
-                 self.emit(':tell', responseOK);
-              }
+           // check to see if there are any entries
+          insertNewDate(params, userID, self);
 
-            });
         });
     },
 
@@ -241,10 +263,14 @@ var handlers = {
             }
 
           };
+
+      if (checkForTimeZone(self)) { return; }
+
           trackEvent(
             'Intent',
             'AMAZON.GetLastTimeAtGymIntent',
-            'na',
+            userID,
+            'Last Time at Gym Query',
             '100',
             function(err) {
               if (err) {
@@ -256,9 +282,8 @@ var handlers = {
                       responseBuild = "Hmmm. I am not sure, there may be a problem or you haven't gone to the gym yet.";
                   } else {
                       var total = data.Items.length;
-                      var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+                      var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym + (1000*60*60*self.attributes['timeZone'])));
                       console.log("Query succeeded. Your last visit was "+ retrievedDate);
-                      //console.log("Query succeeded. Your last visit was "+ formatDate(data.Items[total-1].dateAtGym));
                       responseBuild = 'Your last visit was '+ retrievedDate;
                   }
                       self.emit(':tell', responseBuild);
@@ -283,10 +308,16 @@ var handlers = {
           }
         };
 
+        if ((self.attributes['timeZone']) === undefined) {
+          self.emit(':ask', 'To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone....What time zone are you in?');
+          return;
+        }
+
       trackEvent(
         'Intent',
         'AMAZON.GetNumberOfTotalVisitsIntent',
-        'na',
+        userID,
+        'Get Total Visits',
         '100',
         function(err) {
           if (err) {
@@ -298,9 +329,8 @@ var handlers = {
                     console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
                 } else {
                     var total = data.Items.length;
-                    var retrievedDate = new Date(data.Items[total-1].dateAtGym);
-
                     if (total > 0) {
+                      var retrievedDate = new Date(data.Items[total-1].dateAtGym+(1000*60*60*self.attributes['timeZone']));
                       console.log("Query succeeded. Total: "+total+" your last visit was "+ formatDate(retrievedDate));
                       if (total>1){
                         responseBuild = 'You have been to the gym a total of '+ data.Items.length + 'times. The last time was '+ formatDate(retrievedDate);
@@ -309,7 +339,7 @@ var handlers = {
                       }
                     } else {
                       console.log("It's less than zero!!");
-                      responseBuild = 'There has been an error - Are you sure you have been to the gym?... ever?';
+                      responseBuild = 'There has been an error - Are you sure you have been to the gym?..... ever?';
                     }
                     self.emit(':tell', responseBuild);
                 }
@@ -329,10 +359,13 @@ var handlers = {
       var compareDate = new Date(sinceDate).getTime();
       var currentDate = new Date().getTime();
 
+      if (checkForTimeZone(self)) { return; }
+
       trackEvent(
         'Intent',
         'AMAZON.GetNumberOfVisitsSinceDateIntent',
-        'na',
+        userID,
+        'Get Visits Since Date',
         '100',
         function(err) {
           if (err) {
@@ -360,7 +393,9 @@ var handlers = {
                   } else {
                       var total = data.Items.length;
                       console.log(JSON.stringify(data.Items,null,2));
-                      var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+
+                      if (total>0) {
+                      var retrievedDate = formatDate(new Date(data.Items[total-1].dateAtGym + (1000*60*60*self.attributes['timeZone'])));
 
                       console.log("Query succeeded. Total: "+total+" your last visit was "+retrievedDate);
                       if (total>1){
@@ -369,7 +404,9 @@ var handlers = {
                       if (total===1){
                         responseBuild = 'You have been to the gym a total of '+ data.Items.length + 'time. "+The last time was '+ retrievedDate+' ... Seriously? I can\'t believe you asked me!';
                       };
-
+                    } else {
+                        responseBuild = 'Hmmm... Are you trying to trick me, it doesn\'t look like you have been to the gym, yet!';
+                    }
                       self.emit(':tell', responseBuild);
                   }
               });
@@ -396,10 +433,13 @@ var handlers = {
           }
       };
 
+      if (checkForTimeZone(self)) { return; }
+
       trackEvent(
         'Intent',
         'AMAZON.ResetGymCount',
-        'na',
+        userID,
+        'Reset Gym Counter',
         '100',
         function(err) {
           if (err) {
@@ -444,10 +484,13 @@ var handlers = {
 
     'AMAZON.HelpIntent': function () {
       var self = this;
+      var userID = this.event['session']['user']['userId'];
+
       trackEvent(
         'Intent',
         'AMAZON.HelpIntent',
-        'na',
+        userID,
+        'HELP',
         '100',
         function(err) {
           if (err) {
@@ -461,11 +504,13 @@ var handlers = {
 
     "AMAZON.CancelIntent": function () {
         var self = this;
-        var cancelIntentPhrase = "Okay...";
+        var userID = this.event['session']['user']['userId'];
+        var cancelIntentPhrase = "Okay...Good bye.";
         trackEvent(
           'Intent',
           'AMAZON.CancelIntent',
-          'na',
+          userID,
+          'STOP',
           '100', // Event value must be numeric.
           function(err) {
             if (err) {
@@ -477,11 +522,13 @@ var handlers = {
 
     "AMAZON.StopIntent": function () {
         var self = this;
-        var cancelIntentPhrase = "Okay...";
+        var userID = this.event['session']['user']['userId'];
+        var cancelIntentPhrase = "Okay...Good bye";
         trackEvent(
           'Intent',
           'AMAZON.StopIntent',
-          'na',
+          userID,
+          'STOP',
           '100', // Event value must be numeric.
           function(err) {
             if (err) {
@@ -493,11 +540,13 @@ var handlers = {
 
     'Unhandled': function () {
         var self = this;
+        var userID = this.event['session']['user']['userId'];
         var unhandledPhrase = "Are you are having trouble? You can ask how many times you have been to the gym, or say reset gym tracker to reset all data... If you are going to the gym, just say, I\'m off to the gym!";
         trackEvent(
           'Intent',
           'AMAZON.unhandled',
-          'na',
+          userID,
+          'PROBLEM - UNHANDLED',
           '100',
           function(err) {
             if (err) {
@@ -512,6 +561,14 @@ var handlers = {
 
  };
 
+ function checkForTimeZone(self){
+   if ((self.attributes['timeZone']) === undefined) {
+     self.emit(':ask', 'To get started, please tell me your timezone. You can say Pacific timezone...Mountain timezone...Central timezone...or Eastern timezone....What time zone are you in?');
+     return true;
+   }
+ }
+
+
  function formatDate(date) {
    var monthNames = [
      "January", "February", "March",
@@ -525,4 +582,48 @@ var handlers = {
    var year = date.getFullYear();
 
    return monthNames[monthIndex] + ' ' + day + ', ' + year;
+ }
+
+function insertNewDate(params, userID, self) {
+  var gymDate = new Date();
+  var lastDate = "";
+  var currentDate = formatDate(gymDate);
+  var responseDuplicate = 'Hmm.... It looks like you already told me you went to the gym. Say help for additional commands';
+  var responseOK = 'Keep up the great work! I made a note of this.';
+
+
+ dynamo.query(params, function(err, data) {
+     if (err) {
+         console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+
+     } else {
+       var total = data.Items.length;
+       if (total>0) {
+         console.log("total Records: "+ total);
+         lastDate = formatDate(new Date(data.Items[total-1].dateAtGym));
+         console.log("Last date: "+lastDate + " Today's Date: "+ currentDate);
+         if (lastDate === currentDate) { //check to see if they tried to input the same day twice!
+           self.emit(':ask', responseDuplicate, repromptText);
+         } else {
+           console.log("response is yes");
+           dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
+           function(err, data) {
+             if (err)
+                 console.log(err, err.stack); // an error occurred
+             else
+                 self.emit(':tell', responseOK);
+             });
+         }
+       } else {
+         console.log("response is yes");
+         dynamo.putItem({ TableName : tableName, Item : {stampId : gymDate.getTime(), userId : userID, dateAtGym: gymDate.getTime()}},
+         function(err, data) {
+           if (err)
+               console.log(err, err.stack); // an error occurred
+           else
+               self.emit(':tell', responseOK);
+           });
+       }
+     }
+ });
  }
