@@ -1,22 +1,29 @@
 AreYouGoingIntent {AreYouGoingSlot}
 AreYouGoingIntent {AreYouGoingSlot} I am going
 AreYouGoingIntent {AreYouGoingSlot} I went already
-
-SetGoingToGymIntent going to the gym
-SetGoingToGymIntent leaving for the gym
-SetGoingToGymIntent went to the gym
-
+WhichTimeZoneIntent I am in the {TimeZoneSlot} time zone
+WhichTimeZoneIntent The {TimeZoneSlot} time zone
+WhichTimeZoneIntent My time zone is {TimeZoneSlot}
+WhichTimeZoneIntent {TimeZoneSlot}
+SetGoingToGymIntent I'm going to the gym
+SetGoingToGymIntent I'm off to the gym
+SetGoingToGymIntent I'm leaving for the gym
+SetGoingToGymIntent I went to the gym
 GetLastTimeAtGymIntent tell me when did I go to the gym last
 GetLastTimeAtGymIntent when was the last time I was at the gym
 GetLastTimeAtGymIntent when did I go to the gym last
-
 GetNumberOfTotalVisitsIntent how many times have I gone to the gym
 GetNumberOfTotalVisitsIntent what is the total of gym days
 GetNumberOfTotalVisitsIntent how many days have I been to the gym
 GetNumberOfTotalVisitsIntent tell me how many days have I been to the gym
-
-ResetGymCountIntent reset my gym count
-ResetGymCountIntent erase all previous visits to gym
-
+ResetGymCountIntent reset my gym tracker
+ResetGymCountIntent reset my gym counter
+ResetGymCountIntent reset gym counter
+ResetGymCountIntent reset gym tracker
+ResetGymCountIntent erase gym tracker
+ResetGymCountIntent erase gym counter
+ResetGymCountIntent erase all entries
+GetNumberOfVisitsSinceDateIntent how many times I have I gone to the gym since {SinceDateSlot}
+GetNumberOfVisitsSinceDateIntent tell me how many times I have I gone to the gym since {SinceDateSlot}
 GetNumberOfVisitsSinceDateIntent how many times I have I gone to the gym {SinceDateSlot}
-GetNumberOfVisitsSinceDateIntent tell me how many times I have I gone to the gym {SinceDateSlot}
+GetNumberOfVisitsSinceDateIntent how many times I have I been to the gym {SinceDateSlot}

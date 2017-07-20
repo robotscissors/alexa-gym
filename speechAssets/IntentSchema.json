@@ -1,6 +1,7 @@
 {"intents": [
     {"intent": "WelcomeIntent"},
     {"intent": "AreYouGoingIntent", "slots": [{"name": "AreYouGoingSlot", "type": "YES_OR_NO"}]},
+    {"intent": "TimeZoneIntent", "slots": [{"timezone": "TimeZoneSlot", "type": "TIMEZONE"}]},
     {"intent": "SetGoingToGymIntent"},
     {"intent": "GetLastTimeAtGymIntent"},
     {"intent": "GetNumberOfTotalVisitsIntent"},
